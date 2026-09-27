@@ -1,7 +1,7 @@
 {
 	"name": "CampaignTitans",
-	"version_number": "1.0.0",
-	"website_url": "",
-	"description": "Attrition (aitdm) private match: AI Titans per side on campaign Master settings, with campaign IMC titan-pilot voice lines, random camo, cores, and anti-rodeo electric smoke.",
+	"version_number": "1.0.1",
+	"website_url": "https://github.com/Frost741/CampaignTitans",
+	"description": "Attrition (aitdm) and Titan Brawl (ttdm) private match: AI Titans per side on campaign Master settings, with campaign IMC titan-pilot voice lines, random camo, cores, and anti-rodeo electric smoke.",
 	"dependencies": []
 }

@@ -34,6 +34,10 @@ TF2.CampaignTitans gives enemy AI Titans in Attrition the voice lines of regular
 
 - Legion
 
+- Brute (campaign Quad Rocket Titan)
+
+- Monarch: spawns with one random upgrade from each of the three tiers (Arc Rounds / Missile Racks / Energy Transfer, Rapid Rearm / Energy Field, Multi-Target Missiles / Superior Chassis / XO-16 Battle Rifle).
+
 *Voice Line Protection*
 
 When I first added voice lines to enemy Titans, there was a problem: when they lost health quickly, they could immediately trigger another voice line before the previous one had finished playing.
@@ -45,6 +49,8 @@ However, if a Faction Leader or Titan OS voice line is currently playing, it can
 *Where are the mod settings located?*
 
 Go to Options → Mod Settings and scroll all the way to the bottom. There you will find the TF2.CampaignTitans mod settings, available in both Russian and English.
+
+
 
 ## Configuration
 
@@ -62,6 +68,11 @@ Go to Options → Mod Settings and scroll all the way to the bottom. There you w
 | `ct_gamemode` | `aitdm` | Restrict to this gamemode (empty = any) |
 | `ct_core_chance` | `60` | Chance (%) a Titan is given a core ability |
 | `ct_core_delay_min` / `ct_core_delay_max` | `20` / `45` | Core charge time range (seconds) |
+| `ct_monarch_core_delay_min` / `ct_monarch_core_delay_max` | `8` / `15` | Monarch core (full shield refill) charge time range (seconds) |
 | `ct_voice_range` | `6000` | Range at which enemies hear voice lines (0 = unlimited) |
 | `ct_line_duration` | `6.0` | How long a voice line is considered "busy" |
 | `ct_smoke_cooldown` | `15` | Anti-rodeo smoke cooldown per Titan (seconds) |
+| `ct_ttdm_enabled` | `1` | AI Titans in Titan Brawl (0/1) |
+| `ct_ttdm_titans_ally` | `3` | Titans on your team |
+| `ct_ttdm_titans_enemy` | `4` | Titans on the enemy team |
+| `ct_ttdm_respawn_delay` | `0` | Seconds after death before a replacement spawns |

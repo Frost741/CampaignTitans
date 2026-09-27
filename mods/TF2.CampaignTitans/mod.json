@@ -1,0 +1,53 @@
+{
+	"Name": "TF2.CampaignTitans",
+	"Description": "Attrition (aitdm) and Titan Brawl (ttdm): multiplayer AI Titans per team on campaign Master settings with campaign IMC titan-pilot voice lines, dropping at Titan spawn points.",
+	"Version": "1.0.1",
+	"LoadPriority": 20,
+	"ConVars": [
+		{ "Name": "ct_titans_ally", "DefaultValue": "2" },
+		{ "Name": "ct_titans_enemy", "DefaultValue": "3" },
+		{ "Name": "ct_respawn_delay", "DefaultValue": "10" },
+		{ "Name": "ct_health_scale", "DefaultValue": "1.0" },
+		{ "Name": "ct_damage_scale", "DefaultValue": "1.9" },
+		{ "Name": "ct_private_only", "DefaultValue": "0" },
+		{ "Name": "ct_gamemode", "DefaultValue": "aitdm" },
+		{ "Name": "ct_voice_range", "DefaultValue": "6000" },
+		{ "Name": "ct_line_duration", "DefaultValue": "6.0" },
+		{ "Name": "ct_core_chance", "DefaultValue": "60" },
+		{ "Name": "ct_core_delay_min", "DefaultValue": "20" },
+		{ "Name": "ct_core_delay_max", "DefaultValue": "45" },
+		{ "Name": "ct_monarch_core_delay_min", "DefaultValue": "8" },
+		{ "Name": "ct_monarch_core_delay_max", "DefaultValue": "15" },
+		{ "Name": "ct_smoke_cooldown", "DefaultValue": "15" },
+		{ "Name": "ct_random_camo", "DefaultValue": "1" },
+		{ "Name": "ct_ttdm_enabled", "DefaultValue": "1" },
+		{ "Name": "ct_ttdm_titans_ally", "DefaultValue": "3" },
+		{ "Name": "ct_ttdm_titans_enemy", "DefaultValue": "4" },
+		{ "Name": "ct_ttdm_respawn_delay", "DefaultValue": "0" }
+	],
+	"Scripts": [
+		{
+			"Path": "ui/ms_ct_campaign_titans.nut",
+			"RunOn": "UI",
+			"UICallback": { "Before": "CT_AddModSettings" }
+		},
+		{
+			"Path": "gamemodes/sh_ct_netsync.nut",
+			"RunOn": "( CLIENT || SERVER ) && MP",
+			"ClientCallback": { "Before": "CT_NetSync_Init" },
+			"ServerCallback": { "Before": "CT_NetSync_Init" }
+		},
+		{
+			"Path": "gamemodes/ct_ttdm.nut",
+			"RunOn": "SERVER && MP"
+		},
+		{
+			"Path": "gamemodes/ct_campaign_titans.nut",
+			"RunOn": "SERVER && MP",
+			"ServerCallback": { "After": "CampaignTitans_Init" }
+		}
+	],
+	"Localisation": [
+		"resource/ct_campaign_titans_%language%.txt"
+	]
+}
