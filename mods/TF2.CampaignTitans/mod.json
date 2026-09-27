@@ -1,7 +1,7 @@
 {
 	"Name": "TF2.CampaignTitans",
-	"Description": "Attrition (aitdm) and Titan Brawl (ttdm): multiplayer AI Titans per team on campaign Master settings with campaign IMC titan-pilot voice lines, dropping at Titan spawn points.",
-	"Version": "1.0.1",
+	"Description": "Attrition (aitdm): multiplayer AI Titans per team on campaign Master settings with campaign IMC titan-pilot voice lines, dropping at Titan spawn points.",
+	"Version": "1.0.2",
 	"LoadPriority": 20,
 	"ConVars": [
 		{ "Name": "ct_titans_ally", "DefaultValue": "2" },
@@ -23,7 +23,10 @@
 		{ "Name": "ct_ttdm_enabled", "DefaultValue": "1" },
 		{ "Name": "ct_ttdm_titans_ally", "DefaultValue": "3" },
 		{ "Name": "ct_ttdm_titans_enemy", "DefaultValue": "4" },
-		{ "Name": "ct_ttdm_respawn_delay", "DefaultValue": "0" }
+		{ "Name": "ct_ttdm_respawn_delay", "DefaultValue": "0" },
+		{ "Name": "ct_lts_enabled", "DefaultValue": "1" },
+		{ "Name": "ct_lts_titans_ally", "DefaultValue": "3" },
+		{ "Name": "ct_lts_titans_enemy", "DefaultValue": "4" }
 	],
 	"Scripts": [
 		{
@@ -39,6 +42,10 @@
 		},
 		{
 			"Path": "gamemodes/ct_ttdm.nut",
+			"RunOn": "SERVER && MP"
+		},
+		{
+			"Path": "gamemodes/ct_lts.nut",
 			"RunOn": "SERVER && MP"
 		},
 		{

@@ -1,7 +1,7 @@
 
 > ❗ WARNING: This mod was created with the assistance of Claude AI, and files from ASillyNeko Attrition Extended Recode were used because Claude was unable to properly implement Titan spawning on its own.
 
-TF2.CampaignTitans gives enemy AI Titans in Attrition the voice lines of regular enemy IMC Titans from the Titanfall 2 campaign.
+TF2.CampaignTitans gives enemy AI Titans in Attrition. Titan Brawl and Last Titan Standing the voice lines of regular enemy IMC Titans from the Titanfall 2 campaign.
 
 
 > The mod uses Master difficulty. quoted textDon't try to play the hero and cut through the enemies, because they can catch you off guard.
@@ -36,7 +36,11 @@ TF2.CampaignTitans gives enemy AI Titans in Attrition the voice lines of regular
 
 - Brute (campaign Quad Rocket Titan)
 
-- Monarch: spawns with one random upgrade from each of the three tiers (Arc Rounds / Missile Racks / Energy Transfer, Rapid Rearm / Energy Field, Multi-Target Missiles / Superior Chassis / XO-16 Battle Rifle).
+- Monarch: spawns with one random upgrade from each of the three tiers (Arc Rounds / Missile Racks / Energy Transfer, Rapid Rearm / Energy Field, Multi-Target Missiles / Superior Chassis / XO-16 Battle Rifle). 
+
+*Movement*
+
+After landing, the AI Titans of a team spread out: each one first takes its own flank towards the enemy, and later picks targets away from where its teammates are heading, so they don't all walk the same route. A Titan that can't see an enemy never just stands around: it always walks towards the enemies, and gets a new goal when it has arrived, has been heading to the same goal for too long, or is stuck.
 
 *Voice Line Protection*
 
@@ -50,7 +54,25 @@ However, if a Faction Leader or Titan OS voice line is currently playing, it can
 
 Go to Options → Mod Settings and scroll all the way to the bottom. There you will find the TF2.CampaignTitans mod settings, available in both Russian and English.
 
+## Titan Brawl
 
+
+
+| ConVar | Default | Description |
+|---|---|---|
+| `ct_ttdm_enabled` | `1` | AI Titans in Titan Brawl (0/1) |
+| `ct_ttdm_titans_ally` | `3` | Titans on your team |
+| `ct_ttdm_titans_enemy` | `4` | Titans on the enemy team |
+| `ct_ttdm_respawn_delay` | `0` | Seconds after death before a replacement spawns |
+
+## Last Titan Standing
+
+
+| ConVar | Default | Description |
+|---|---|---|
+| `ct_lts_enabled` | `1` | AI Titans in Last Titan Standing (0/1) |
+| `ct_lts_titans_ally` | `3` | Titans on your team per round |
+| `ct_lts_titans_enemy` | `4` | Titans on the enemy team per round |
 
 ## Configuration
 
@@ -72,7 +94,3 @@ Go to Options → Mod Settings and scroll all the way to the bottom. There you w
 | `ct_voice_range` | `6000` | Range at which enemies hear voice lines (0 = unlimited) |
 | `ct_line_duration` | `6.0` | How long a voice line is considered "busy" |
 | `ct_smoke_cooldown` | `15` | Anti-rodeo smoke cooldown per Titan (seconds) |
-| `ct_ttdm_enabled` | `1` | AI Titans in Titan Brawl (0/1) |
-| `ct_ttdm_titans_ally` | `3` | Titans on your team |
-| `ct_ttdm_titans_enemy` | `4` | Titans on the enemy team |
-| `ct_ttdm_respawn_delay` | `0` | Seconds after death before a replacement spawns |

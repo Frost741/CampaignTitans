@@ -2,6 +2,9 @@ untyped
 
 global function CampaignTitans_Init
 global function CT_IsOurs
+global function CT_CountAlive
+global function CT_IsOpeningDone
+global function CT_DestroyAllTitans
 
 // ---------------------------------------------------------------------------
 // TF2.CampaignTitans v0.3
@@ -23,6 +26,8 @@ struct
 	table nextSpawn
 	table spawnedTotal
 	table deficitSince
+	table target
+	table roamGoal      // titan -> vector: where it's heading, so teammates pick other routes
 	int playerTeam = 0
 	table speech
 	array<table> pending
@@ -36,10 +41,11 @@ void function CampaignTitans_Init()
 {
 	printt( "[CT] init: GAMETYPE=" + GAMETYPE )
 
-	// Titan Brawl has its own settings (ct_ttdm.nut) and isn't limited by ct_gamemode
+	// Titan Brawl and Last Titan Standing have their own settings (ct_ttdm.nut, ct_lts.nut) and aren't limited by ct_gamemode
 	bool ttdm = CT_TTDM_IsActive()
+	bool lts = CT_LTS_IsActive()
 	string wanted = GetConVarString( "ct_gamemode" )
-	if ( !ttdm && wanted != "" && GAMETYPE != wanted )
+	if ( !ttdm && !lts && wanted != "" && GAMETYPE != wanted )
 	{
 		printt( "[CT] disabled: gamemode is '" + GAMETYPE + "', mod wants '" + wanted + "' (set ct_gamemode \"\" to allow any mode)" )
 		return
@@ -63,6 +69,8 @@ void function CampaignTitans_Init()
 	AddOnRodeoStartedCallback( CT_OnRodeoStarted )
 	if ( ttdm )
 		CT_TTDM_Init()
+	if ( lts )
+		CT_LTS_Init()
 
 	printt( "[CT] enabled, waiting for eGameState.Playing" )
 	if ( GetGameState() == eGameState.Playing )
@@ -321,6 +329,8 @@ void function CT_MonitorCore( entity npc )
 
 // ---- main loop -------------------------------------------------------------
 
+// runs every time the game enters Playing: once per match, or once per round in round-based modes (LTS);
+// file.started only stops a second manager while one is still running
 void function CT_OnPlaying()
 {
 	if ( file.started )
@@ -328,6 +338,24 @@ void function CT_OnPlaying()
 	file.started = true
 	printt( "[CT] match is Playing - starting manager" )
 	thread CT_Manager()
+}
+
+bool function CT_IsOpeningDone( int team )
+{
+	if ( !( team in file.spawnedTotal ) || !( team in file.target ) )
+		return false
+	return file.spawnedTotal[ team ] >= file.target[ team ]
+}
+
+void function CT_DestroyAllTitans()
+{
+	foreach ( entity t in file.titans )
+	{
+		if ( IsValid( t ) )
+			t.Destroy()
+	}
+	file.titans.clear()
+	CT_CleanupState()
 }
 
 // the team the human players are on (the majority; keeps the last answer on a tie)
@@ -349,9 +377,21 @@ int function CT_GetPlayerTeam()
 void function CT_Manager()
 {
 	bool ttdm = CT_TTDM_IsActive()
-	int allyCount = ttdm ? CT_TTDM_GetAllyCount() : GetConVarInt( "ct_titans_ally" )     // Titans on the players' team
-	int enemyCount = ttdm ? CT_TTDM_GetEnemyCount() : GetConVarInt( "ct_titans_enemy" ) // Titans on the other team
-	float delay = ttdm ? CT_TTDM_GetRespawnDelay() : GetConVarFloat( "ct_respawn_delay" )
+	bool lts = CT_LTS_IsActive()
+	int allyCount = GetConVarInt( "ct_titans_ally" )   // Titans on the players' team
+	int enemyCount = GetConVarInt( "ct_titans_enemy" ) // Titans on the other team
+	float delay = GetConVarFloat( "ct_respawn_delay" )
+	if ( ttdm )
+	{
+		allyCount = CT_TTDM_GetAllyCount()
+		enemyCount = CT_TTDM_GetEnemyCount()
+		delay = CT_TTDM_GetRespawnDelay()
+	}
+	else if ( lts )
+	{
+		allyCount = CT_LTS_GetAllyCount()
+		enemyCount = CT_LTS_GetEnemyCount()
+	}
 
 	array<int> teams = [ TEAM_IMC, TEAM_MILITIA ]
 
@@ -360,6 +400,7 @@ void function CT_Manager()
 		file.nextSpawn[ team ] <- 0.0
 		file.spawnedTotal[ team ] <- 0
 		file.deficitSince[ team ] <- 0.0
+		file.target[ team ] <- 999 // not known until the player team is, CT_IsOpeningDone stays false till then
 	}
 
 	// small pause so the match/AI systems are up
@@ -377,6 +418,7 @@ void function CT_Manager()
 		foreach ( team in teams )
 		{
 			int target = ( team == playerTeam ) ? allyCount : enemyCount
+			file.target[ team ] = target
 
 			if ( CT_CountAlive( team ) >= target )
 			{
@@ -388,9 +430,16 @@ void function CT_Manager()
 
 			bool opening = file.spawnedTotal[ team ] < target
 
+			// LTS: a Titan that couldn't find a spawnpoint in time doesn't drop in mid-round anymore
+			if ( lts && opening && CT_LTS_SpawnWindowClosed() )
+				continue
+
 			// replacement: wait ct_respawn_delay seconds from the moment a Titan is missing
 			if ( !opening )
 			{
+				if ( lts )
+					continue // Last Titan Standing: no respawns, dead Titans stay dead until the next round
+
 				if ( file.deficitSince[ team ] == 0.0 )
 					file.deficitSince[ team ] = Time()
 				if ( Time() - file.deficitSince[ team ] < delay )
@@ -407,6 +456,8 @@ void function CT_Manager()
 
 		wait 0.5
 	}
+
+	file.started = false // lets the next round (LTS) start a new manager
 }
 
 void function CT_CleanupState()
@@ -420,6 +471,16 @@ void function CT_CleanupState()
 	}
 	foreach ( ent in dead )
 		delete file.state[ ent ]
+
+	// movement goals of dead Titans
+	array<entity> gone
+	foreach ( ent, goal in file.roamGoal )
+	{
+		if ( !IsAlive( expect entity( ent ) ) )
+			gone.append( expect entity( ent ) )
+	}
+	foreach ( ent in gone )
+		delete file.roamGoal[ ent ]
 }
 
 int function CT_CountAlive( int team )
@@ -505,7 +566,12 @@ table function CT_PickDef( int team )
 
 void function CT_SpawnTitan( int team )
 {
-	entity spawnpoint = CT_GetSpawnpoint( team )
+	// LTS: drop on the Titan start points of the team's own side, like the players do (ct_lts.nut)
+	entity spawnpoint = null
+	if ( CT_LTS_IsActive() )
+		spawnpoint = CT_LTS_GetSpawnpoint( team )
+	if ( !IsValid( spawnpoint ) )
+		spawnpoint = CT_GetSpawnpoint( team )
 	if ( !IsValid( spawnpoint ) )
 	{
 		printt( "[CT] no free titan spawnpoint for team " + team + ", will retry" )
@@ -528,6 +594,20 @@ void function CT_SpawnTitan( int team )
 	string behavior = expect string( def.behavior )
 	string tactical = expect string( def.tactical )
 	printt( "[CT] spawning " + setFile + " (" + aiSettings + ") for team " + team + " at " + origin )
+
+	// LTS: warpfall like the game's own AI Titans use (call-in sound + warp flash, then the fast "upgraded" drop)
+	bool warpfall = CT_LTS_IsActive()
+	if ( warpfall )
+	{
+		NPCPrespawnWarpfallSequence( aiSettings, origin, angles ) // ~2s of warp-in before the Titan exists
+		if ( GetGameState() != eGameState.Playing )
+		{
+			// the round ended during the warp-in
+			if ( IsValid( spawnpoint ) )
+				CT_ToggleSpawnpointUse( spawnpoint, false )
+			return
+		}
+	}
 
 	entity titan = CreateNPCTitan( setFile, team, origin, angles )
 	SetSpawnOption_AISettings( titan, aiSettings )
@@ -554,7 +634,14 @@ void function CT_SpawnTitan( int team )
 	// titanfall, same as a player's Titan drop
 	SetStanceKneel( titan.GetTitanSoul() )
 	UpdateEnemyMemoryFromTeammates( titan )
-	NPCTitanHotdrops( titan, true ) // blocks until the Titan has landed and stood up
+	// NPCTitanHotdrops keeps waiting after the landing while the Titan's post-drop bubble shield is up,
+	// so run it in its own thread and carry on as soon as the Titan has landed and stood up
+	if ( warpfall )
+		thread NPCTitanHotdrops( titan, true, "at_hotdrop_drop_2knee_turbo_upgraded" )
+	else
+		thread NPCTitanHotdrops( titan, true )
+	while ( IsAlive( titan ) && titan.e.isHotDropping )
+		WaitFrame()
 
 	// start the behaviour threads only now, otherwise WaitTillHotDropComplete returns before the drop begins
 	if ( IsAlive( titan ) )
@@ -593,8 +680,8 @@ int function CT_PointsForVictim( entity victim )
 
 void function CT_OnAnyNPCKilled( entity victim, entity attacker, var damageInfo )
 {
-	if ( CT_TTDM_IsActive() )
-		return // Titan Brawl scores 1 per kill in ct_ttdm.nut, not the Attrition values
+	if ( CT_TTDM_IsActive() || CT_LTS_IsActive() )
+		return // Titan Brawl scores 1 per kill in ct_ttdm.nut, LTS scores rounds - not the Attrition values
 	if ( !IsValid( attacker ) || !attacker.IsNPC() )
 		return
 	if ( !IsValid( victim ) || !victim.IsNPC() )
@@ -690,32 +777,147 @@ void function CT_TitanSmokeThread( entity titan )
 
 // ---- roaming ---------------------------------------------------------------
 
+// Titans of one team spread out instead of all walking the same way: every movement goal is
+// picked to be as far as possible from the goals their teammates are already heading to.
+// Right after the drop each Titan first takes a flank - a Titan spawnpoint on the way to the
+// enemy that no teammate is going to - and only then starts hunting enemies.
+
+// how close (2D) a point is to the nearest goal of this Titan's teammates
+float function CT_DistToAllyGoals( entity titan, vector point )
+{
+	float best = 999999.0
+	foreach ( ent, goal in file.roamGoal )
+	{
+		if ( ent == titan || !IsAlive( expect entity( ent ) ) || ent.GetTeam() != titan.GetTeam() )
+			continue
+		float d = Distance2D( point, expect vector( goal ) )
+		if ( d < best )
+			best = d
+	}
+	return best
+}
+
+// of a few random candidates, the one farthest from the teammates' goals
+vector function CT_PickSpreadPoint( entity titan, array<vector> candidates )
+{
+	vector best = candidates.getrandom()
+	float bestDist = -1.0
+	for ( int i = 0; i < 3; i++ )
+	{
+		vector c = candidates.getrandom()
+		float d = CT_DistToAllyGoals( titan, c )
+		if ( d > bestDist )
+		{
+			bestDist = d
+			best = c
+		}
+	}
+	return best
+}
+
+void function CT_SetRoamGoal( entity titan, vector point, float radius )
+{
+	file.roamGoal[ titan ] <- point
+	titan.AssaultPoint( point )
+	titan.AssaultSetGoalRadius( radius )
+}
+
+// average position of the living enemies (players and NPC Titans); false if there are none
+bool function CT_GetEnemyCenter( int team, table out )
+{
+	vector sum = < 0, 0, 0 >
+	int n = 0
+	foreach ( entity p in GetPlayerArrayOfEnemies( team ) )
+	{
+		if ( IsAlive( p ) )
+		{
+			sum += p.GetOrigin()
+			n++
+		}
+	}
+	foreach ( entity t in GetNPCArrayOfEnemies( team ) )
+	{
+		if ( IsAlive( t ) && t.IsTitan() )
+		{
+			sum += t.GetOrigin()
+			n++
+		}
+	}
+	if ( n == 0 )
+		return false
+
+	out.center <- sum * ( 1.0 / float( n ) )
+	return true
+}
+
+// a Titan spawnpoint that brings the Titan closer to the enemy, on a different route than its teammates
+bool function CT_PickFlankPoint( entity titan, table out )
+{
+	table enemy = {}
+	if ( !CT_GetEnemyCenter( titan.GetTeam(), enemy ) )
+		return false
+
+	vector enemyCenter = expect vector( enemy.center )
+	float myDist = Distance2D( titan.GetOrigin(), enemyCenter )
+
+	array<vector> forward
+	foreach ( entity sp in SpawnPoints_GetTitan() )
+	{
+		vector o = sp.GetOrigin()
+		// ahead of us (closer to the enemy), but not right on top of them or right next to us
+		float d = Distance2D( o, enemyCenter )
+		if ( d < myDist * 0.85 && d > 1500 && Distance2D( o, titan.GetOrigin() ) > 1200 )
+			forward.append( o )
+	}
+	if ( forward.len() == 0 )
+		return false
+
+	// the most spread-out of several tries
+	vector best = forward.getrandom()
+	float bestDist = -1.0
+	for ( int i = 0; i < 6; i++ )
+	{
+		vector c = forward.getrandom()
+		float dist = CT_DistToAllyGoals( titan, c )
+		if ( dist > bestDist )
+		{
+			bestDist = dist
+			best = c
+		}
+	}
+
+	out.point <- best
+	return true
+}
+
 vector function CT_PickRoamPoint( entity titan )
 {
 	int team = titan.GetTeam()
 
-	array<entity> players
+	array<vector> players
 	foreach ( entity p in GetPlayerArrayOfEnemies( team ) )
 	{
 		if ( IsAlive( p ) )
-			players.append( p )
+			players.append( p.GetOrigin() )
 	}
 
-	array<entity> npcs
+	array<vector> npcs
 	foreach ( entity n in GetNPCArrayOfEnemies( team ) )
 	{
 		if ( IsAlive( n ) )
-			npcs.append( n )
+			npcs.append( n.GetOrigin() )
 	}
 
 	if ( players.len() > 0 && ( npcs.len() == 0 || RandomInt( 100 ) < 50 ) )
-		return players.getrandom().GetOrigin()
+		return CT_PickSpreadPoint( titan, players )
 	if ( npcs.len() > 0 )
-		return npcs.getrandom().GetOrigin()
+		return CT_PickSpreadPoint( titan, npcs )
 
-	array<entity> spawns = SpawnPoints_GetTitan()
+	array<vector> spawns
+	foreach ( entity sp in SpawnPoints_GetTitan() )
+		spawns.append( sp.GetOrigin() )
 	if ( spawns.len() > 0 )
-		return spawns.getrandom().GetOrigin()
+		return CT_PickSpreadPoint( titan, spawns )
 
 	return titan.GetOrigin()
 }
@@ -729,13 +931,70 @@ void function CT_RoamThread( entity titan )
 
 	titan.EnableNPCFlag( NPC_ALLOW_PATROL | NPC_ALLOW_INVESTIGATE | NPC_ALLOW_HAND_SIGNALS )
 
+	// The Titan must never just stand around: whenever it isn't looking at an enemy, it always has
+	// somewhere to go, and gets a new goal when it has arrived, has been walking to the same goal
+	// for too long, or hasn't really moved for a few seconds (goal unreachable / stuck).
+	// While it can see an enemy the combat AI is left alone.
+
+	// first leg: fan out on a flank of its own
+	bool flanking = false
+	table flank = {}
+	if ( CT_PickFlankPoint( titan, flank ) )
+	{
+		CT_SetRoamGoal( titan, expect vector( flank.point ), 500 )
+		flanking = true
+	}
+	else
+	{
+		CT_SetRoamGoal( titan, CT_PickRoamPoint( titan ), 500 )
+	}
+
+	float goalSetAt = Time()
+	vector lastPos = titan.GetOrigin()
+	float lastMovedAt = Time()
+	int stuckCount = 0
+
 	while ( true )
 	{
-		vector point = CT_PickRoamPoint( titan )
-		titan.AssaultPoint( point )
-		titan.AssaultSetGoalRadius( 1200 )
+		wait 1.0
 
-		wait RandomFloatRange( 8.0, 18.0 )
+		vector pos = titan.GetOrigin()
+		if ( Distance2D( pos, lastPos ) > 120 )
+		{
+			lastPos = pos
+			lastMovedAt = Time()
+		}
+
+		entity enemy = titan.GetEnemy()
+		if ( IsAlive( enemy ) && titan.CanSee( enemy ) )
+		{
+			// fighting: don't pull it away, just don't count this as being stuck
+			lastMovedAt = Time()
+			flanking = false
+			continue
+		}
+
+		bool arrived = Distance2D( pos, expect vector( file.roamGoal[ titan ] ) ) < 700
+		bool stuck = Time() - lastMovedAt > 4.0
+		bool tooLong = Time() - goalSetAt > ( flanking ? 25.0 : 12.0 )
+		if ( !arrived && !stuck && !tooLong )
+			continue
+
+		// new goal: after the flank go for the enemies; if we keep getting stuck, try a random Titan spawnpoint instead
+		stuckCount = stuck ? stuckCount + 1 : 0
+		flanking = false
+		vector goal = CT_PickRoamPoint( titan )
+		if ( stuckCount >= 2 )
+		{
+			array<entity> spawns = SpawnPoints_GetTitan()
+			if ( spawns.len() > 0 )
+				goal = spawns.getrandom().GetOrigin()
+			stuckCount = 0
+		}
+
+		CT_SetRoamGoal( titan, goal, 500 )
+		goalSetAt = Time()
+		lastMovedAt = Time()
 	}
 }
 

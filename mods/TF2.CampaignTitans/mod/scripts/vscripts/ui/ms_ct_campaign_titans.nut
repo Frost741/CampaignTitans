@@ -30,6 +30,11 @@ void function CT_AddModSettings()
 	ModSettings_AddSliderSetting( "ct_ttdm_titans_enemy", "#CT_SET_ENEMY", 0, 8, 1, true )
 	ModSettings_AddSliderSetting( "ct_ttdm_respawn_delay", "#CT_SET_RESPAWN", 0, 60, 1, true )
 
+	ModSettings_AddModCategory( "#CT_CAT_LTS" )
+	ModSettings_AddEnumSetting( "ct_lts_enabled", "#CT_SET_LTS_ENABLED", [ "#CT_OFF", "#CT_ON" ] )
+	ModSettings_AddSliderSetting( "ct_lts_titans_ally", "#CT_SET_ALLY", 0, 6, 1, true )
+	ModSettings_AddSliderSetting( "ct_lts_titans_enemy", "#CT_SET_ENEMY", 0, 8, 1, true )
+
 	ModSettings_AddModCategory( "#CT_CAT_CORE" )
 	ModSettings_AddSliderSetting( "ct_core_chance", "#CT_SET_CORE_CHANCE", 0, 100, 5, true )
 	ModSettings_AddSliderSetting( "ct_core_delay_min", "#CT_SET_CORE_MIN", 5, 120, 1, true )
